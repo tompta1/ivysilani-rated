@@ -6,6 +6,13 @@ type DatasetSummary = {
   posterCount: number
 }
 
+type CtSnapshotSummary = {
+  snapshotDate: string
+  fetchedAt: string
+  itemCount: number
+  totalCount: number
+}
+
 const DATASET_KEY = 'source-core-dataset'
 
 let pool: Pool | null = null
@@ -55,6 +62,18 @@ function getDatasetPool(): Pool {
   return pool
 }
 
+function normalizeDateValue(value: unknown): string {
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10)
+  }
+
+  if (typeof value === 'string') {
+    return value.slice(0, 10)
+  }
+
+  return String(value)
+}
+
 async function getLatestDatasetSummary(): Promise<DatasetSummary | null> {
   const client = await getDatasetPool().connect()
 
@@ -88,6 +107,41 @@ async function getLatestDatasetSummary(): Promise<DatasetSummary | null> {
   }
 }
 
+async function getLatestCtSnapshotSummary(): Promise<CtSnapshotSummary | null> {
+  const client = await getDatasetPool().connect()
+
+  try {
+    const result = await client.query<{
+      snapshot_date: string
+      fetched_at: string
+      item_count: number
+      total_count: number
+    }>(
+      `
+        SELECT snapshot_date, fetched_at, item_count, total_count
+        FROM ct_catalogue_snapshots
+        WHERE category_id = $1
+        ORDER BY fetched_at DESC, id DESC
+        LIMIT 1
+      `,
+      ['3947'],
+    )
+
+    if (result.rowCount === 0) {
+      return null
+    }
+
+    return {
+      snapshotDate: normalizeDateValue(result.rows[0].snapshot_date),
+      fetchedAt: result.rows[0].fetched_at,
+      itemCount: result.rows[0].item_count,
+      totalCount: result.rows[0].total_count,
+    }
+  } finally {
+    client.release()
+  }
+}
+
 export default async function handler(req: any, res: any): Promise<void> {
   if (handleOptions(req, res)) {
     return
@@ -104,6 +158,7 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   try {
     const dataset = await getLatestDatasetSummary()
+    const ctSnapshot = await getLatestCtSnapshotSummary()
 
     setCorsHeaders(res)
     res.setHeader('Cache-Control', 'no-store')
@@ -121,6 +176,18 @@ export default async function handler(req: any, res: any): Promise<void> {
               generatedAt: dataset.generatedAt,
               itemCount: dataset.itemCount,
               posterCount: dataset.posterCount,
+            },
+      ctCatalogue:
+        ctSnapshot === null
+          ? {
+              present: false,
+            }
+          : {
+              present: true,
+              snapshotDate: ctSnapshot.snapshotDate,
+              fetchedAt: ctSnapshot.fetchedAt,
+              itemCount: ctSnapshot.itemCount,
+              totalCount: ctSnapshot.totalCount,
             },
     })
   } catch (error) {

@@ -11,6 +11,7 @@
     "curate:leaders": "node ./scripts/curate-leaderboards.mjs",
     "enrich:ct-posters": "node ./scripts/enrich-ct-posters.mjs",
     "build:source-core-dataset": "node ./scripts/build-source-core-dataset.mjs",
+    "refresh:ct-catalogue-cache": "node ./scripts/refresh-ct-catalogue-cache.mjs",
     "refresh:source-core-dataset": "node ./scripts/refresh-source-core-dataset.mjs",
     "push:source-core-dataset:neon": "node ./scripts/push-source-core-dataset-to-neon.mjs",
     "setup:neon": "node ./scripts/setup-neon-dataset-schema.mjs"

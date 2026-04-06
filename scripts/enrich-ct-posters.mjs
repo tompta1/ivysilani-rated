@@ -2,33 +2,9 @@ import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { chromium } from 'playwright'
-import { fetchAllCtMovies } from '../lib/ct-catalogue.ts'
-import { normalizeTitle, yearToNumber } from '../lib/title-match.ts'
-
-function parseArgs(argv) {
-  const options = {}
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const token = argv[index]
-
-    if (!token.startsWith('--')) {
-      continue
-    }
-
-    const [rawKey, inlineValue] = token.slice(2).split('=', 2)
-    const next = argv[index + 1]
-    const value =
-      inlineValue !== undefined
-        ? inlineValue
-        : next !== undefined && !next.startsWith('--')
-          ? (index += 1, next)
-          : true
-
-    options[rawKey] = value
-  }
-
-  return options
-}
+import { parseArgs } from './lib/args.mjs'
+import { fetchAllCtMovies } from './lib/ct-catalogue.mjs'
+import { normalizeTitle, yearToNumber } from './lib/title-match.mjs'
 
 const options = parseArgs(process.argv.slice(2))
 const weightedSeedPath =
@@ -85,7 +61,7 @@ function findCtMatch(seed, ctMovies) {
 }
 
 const weightedSeed = JSON.parse(await readFile(weightedSeedPath, 'utf8'))
-const ctMovies = await fetchAllCtMovies()
+const { items: ctMovies } = await fetchAllCtMovies()
 const matchedCtMovies = weightedSeed.items
   .map((seed) => findCtMatch(seed, ctMovies))
   .filter((item, index, items) => item !== null && items.findIndex((other) => other?.slug === item.slug) === index)

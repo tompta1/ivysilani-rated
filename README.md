@@ -15,7 +15,7 @@ Produkční backend:
 
 Frontend volá dva endpointy:
 
-- `GET /api/ct-movies`: živý katalog filmů z ČT
+- `GET /api/ct-movies`: denně cacheovaný katalog filmů z ČT s živým fallbackem
 - `GET /api/source-core-dataset`: poslední dataset uložený v Neon
 - `GET /api/health`: jednoduchý health check backendu a dostupnosti datasetu
 
@@ -31,6 +31,21 @@ Dataset obsahuje:
 - mapu miniatur z detailových stránek iVysílání
 
 Dataset se už neuchovává v repozitáři. Repo obsahuje jen skripty, které ho umí jednou ročně znovu vytvořit a nahrát do Neon.
+
+## Denní cache katalogu ČT
+
+Katalog `Filmy` z iVysílání se mění častěji než roční ranking dataset, takže je uložený zvlášť:
+
+- Neon tabulka `ct_catalogue_snapshots`
+- denní refresh přes GitHub Actions
+- `GET /api/ct-movies` čte nejdřív Neon snapshot
+- pokud snapshot chybí nebo je starší než 36 hodin, endpoint spadne zpět na živý dotaz do ČT API
+
+Lokální ruční refresh do Neon:
+
+```bash
+npm run refresh:ct-catalogue-cache
+```
 
 ## Lokální vývoj
 
@@ -78,10 +93,12 @@ Pipeline dělá toto:
 
 ## GitHub Actions
 
-Projekt obsahuje dvě workflow:
+Projekt obsahuje tři workflow:
 
 - [`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml)
   build a publish frontendu na GitHub Pages
+- [`.github/workflows/refresh-ct-catalogue-cache.yml`](./.github/workflows/refresh-ct-catalogue-cache.yml)
+  denní refresh katalogu `Filmy` z ČT do Neon
 - [`.github/workflows/refresh-source-core-dataset.yml`](./.github/workflows/refresh-source-core-dataset.yml)
   roční ETL běh a upload datasetu do Neon
 
@@ -92,18 +109,13 @@ GitHub Pages build:
 - repo variable `VITE_API_BASE_URL`
   příklad: `https://ivysilani-rated.vercel.app`
 
-Vercel backend a roční ETL:
+Vercel backend, denní cache a roční ETL:
 
 - `DATABASE_URL` nebo `NEON_DATABASE_URL`
 
 GitHub Actions secret:
 
 - `DATABASE_URL`
-
-Poznámka k Vercel preview:
-
-- preview `DATABASE_URL` jde nastavit až po založení git větve nebo po prvním pushi repozitáře
-- produkce a development můžou být nastavené hned
 
 ## Health endpoint
 
@@ -113,7 +125,7 @@ Backend vystavuje:
 GET /api/health
 ```
 
-Vrací základní stav API a informaci, jestli je v Neon aktuálně dostupný dataset.
+Vrací základní stav API a informaci, jestli je v Neon aktuálně dostupný dataset a poslední CT snapshot.
 
 Příklad odpovědi:
 
@@ -127,13 +139,20 @@ Příklad odpovědi:
     "generatedAt": "2026-04-06T19:46:22.396Z",
     "itemCount": 1010,
     "posterCount": 21
+  },
+  "ctCatalogue": {
+    "present": true,
+    "snapshotDate": "2026-04-06",
+    "fetchedAt": "2026-04-06T20:00:00.000Z",
+    "itemCount": 953,
+    "totalCount": 953
   }
 }
 ```
 
 ## Deploy checklist
 
-1. Nastav ve Vercelu `DATABASE_URL` pro `production` a `development`.
+1. Nastav ve Vercelu `DATABASE_URL` pro `production`, `preview` a `development`.
 2. Nastav v GitHub repo variable `VITE_API_BASE_URL`.
 3. Nastav v GitHub repo secret `DATABASE_URL`.
 4. Jednou spusť `npm run setup:neon`.
