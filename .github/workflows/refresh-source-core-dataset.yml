@@ -1,0 +1,43 @@
+name: Refresh Source Core Dataset
+
+on:
+  schedule:
+    - cron: '17 4 5 1 *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Setup Neon schema
+        run: npm run setup:neon
+
+      - name: Refresh source core dataset into temp file
+        run: npm run refresh:source-core-dataset -- --output-file /tmp/source-core-dataset.json
+
+      - name: Push source core dataset to Neon
+        run: npm run push:source-core-dataset:neon -- --dataset-file /tmp/source-core-dataset.json
+
+      - name: Remove temp dataset file
+        if: always()
+        run: rm -f /tmp/source-core-dataset.json

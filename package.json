@@ -1,0 +1,29 @@
+{
+  "name": "ivysilani-rated",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "probe:ct": "node ./scripts/probe-ct-catalogue.mjs",
+    "curate:leaders": "node ./scripts/curate-leaderboards.mjs",
+    "enrich:ct-posters": "node ./scripts/enrich-ct-posters.mjs",
+    "build:source-core-dataset": "node ./scripts/build-source-core-dataset.mjs",
+    "refresh:source-core-dataset": "node ./scripts/refresh-source-core-dataset.mjs",
+    "push:source-core-dataset:neon": "node ./scripts/push-source-core-dataset-to-neon.mjs",
+    "setup:neon": "node ./scripts/setup-neon-dataset-schema.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "@types/pg": "^8.15.5",
+    "cheerio": "^1.2.0",
+    "playwright": "^1.59.1",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.1"
+  }
+}
